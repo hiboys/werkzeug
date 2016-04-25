@@ -463,11 +463,13 @@ class SharedDataMiddleware(object):
     The optional `disallow` parameter can be a list of :func:`~fnmatch.fnmatch`
     rules for files that are not accessible from the web.  If `cache` is set to
     `False` no caching headers are sent.
+    静态文件服务于cache的关系
 
     Currently the middleware does not support non ASCII filenames.  If the
     encoding on the file system happens to be the encoding of the URI it may
     work but this could also be by accident.  We strongly suggest using ASCII
     only file names for static files.
+    静态文件名，当前不允许非asii编码的文件名
 
     The middleware will guess the mimetype using the Python `mimetype`
     module.  If it's unable to figure out the charset it will fall back
@@ -483,9 +485,13 @@ class SharedDataMiddleware(object):
                 application you can pass it :exc:`NotFound`.
     :param exports: a dict of exported files and folders.
     :param disallow: a list of :func:`~fnmatch.fnmatch` rules.
+    disallow 包含的含有shell统配符的正则表达式
     :param fallback_mimetype: the fallback mimetype for unknown files.
     :param cache: enable or disable caching headers.
     :param cache_timeout: the cache timeout in seconds for the headers.
+
+    run_simple中的static_files参数，实际就是这里构造函数的exports参数
+    为什么这里的exports参数要设置成字典的形式
     """
 
     def __init__(self, app, exports, disallow=None, cache=True,
@@ -493,7 +499,7 @@ class SharedDataMiddleware(object):
         self.app = app
         self.exports = {}
         self.cache = cache
-        self.cache_timeout = cache_timeout
+        self.cache_timeout = cache_timeout #缓存超时时间
         for key, value in iteritems(exports):
             if isinstance(value, tuple):
                 loader = self.get_package_loader(*value)
@@ -504,7 +510,7 @@ class SharedDataMiddleware(object):
                     loader = self.get_directory_loader(value)
             else:
                 raise TypeError('unknown def %r' % value)
-            self.exports[key] = loader
+            self.exports[key] = loader #注意这里exports的设置,也把loader设置了进去
         if disallow is not None:
             from fnmatch import fnmatch
             self.is_allowed = lambda x: not fnmatch(x, disallow)
@@ -518,6 +524,10 @@ class SharedDataMiddleware(object):
         return True
 
     def _opener(self, filename):
+        """
+        _opener实际是一个闭包，返回的是一个匿名函数，这个匿名函数不接受任何参数，
+        这个匿名函数的返回结果是一个三元素元组，
+        """
         return lambda: (
             open(filename, 'rb'),
             datetime.utcfromtimestamp(os.path.getmtime(filename)),
@@ -564,6 +574,9 @@ class SharedDataMiddleware(object):
         return loader
 
     def generate_etag(self, mtime, file_size, real_filename):
+        """
+        这里生成etag使用了修改时间，加文件大小，加上一个字符串检验码
+        """
         if not isinstance(real_filename, bytes):
             real_filename = real_filename.encode(get_filesystem_encoding())
         return 'wzsdm-%d-%s-%s' % (
@@ -573,7 +586,7 @@ class SharedDataMiddleware(object):
         )
 
     def __call__(self, environ, start_response):
-        cleaned_path = get_path_info(environ)
+        cleaned_path = get_path_info(environ) #从environ中获取路径信息
         if PY2:
             cleaned_path = cleaned_path.encode(get_filesystem_encoding())
         # sanitize the path for non unix systems
@@ -581,6 +594,7 @@ class SharedDataMiddleware(object):
         for sep in os.sep, os.altsep:
             if sep and sep != '/':
                 cleaned_path = cleaned_path.replace(sep, '/')
+        #忽略路径中的..符号
         path = '/' + '/'.join(x for x in cleaned_path.split('/')
                               if x and x != '..')
         file_loader = None
