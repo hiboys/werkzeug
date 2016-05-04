@@ -109,14 +109,17 @@ class BaseRequest(object):
     Request objects are **read only**.  As of 0.5 modifications are not
     allowed in any place.  Unlike the lower level parsing functions the
     request object will use immutable objects everywhere possible.
+    请求对象都是只读的
 
     Per default the request object will assume all the text data is `utf-8`
     encoded.  Please refer to `the unicode chapter <unicode.txt>`_ for more
     details about customizing the behavior.
+    默认情况下，假定所有的文本数据都是utf-8编码的格式，但是提供了接口可以自定义，这种行为
 
     Per default the request object will be added to the WSGI
     environment as `werkzeug.request` to support the debugging system.
     If you don't want that, set `populate_request` to `False`.
+    默认情况下，请求对象的引用会添加到wsgi的环境变量中，以支持调试
 
     If `shallow` is `True` the environment is initialized as shallow
     object around the environ.  Every operation that would modify the
@@ -157,6 +160,7 @@ class BaseRequest(object):
     #: Have a look at :ref:`dealing-with-request-data` for more details.
     #:
     #: .. versionadded:: 0.5
+    #:最大的表单字段大小
     max_form_memory_size = None
 
     #: the class to use for `args` and `form`.  The default is an
@@ -168,6 +172,7 @@ class BaseRequest(object):
     #: possible to use mutable structures, but this is not recommended.
     #:
     #: .. versionadded:: 0.6
+    #: 不可修改的字典数据结构，对一个字段key可以存储多个值
     parameter_storage_class = ImmutableMultiDict
 
     #: the type to be used for list values from the incoming WSGI environment.
@@ -175,6 +180,7 @@ class BaseRequest(object):
     #: (for example for :attr:`access_list`).
     #:
     #: .. versionadded:: 0.6
+    #: 不可修改的列表
     list_storage_class = ImmutableList
 
     #: the type to be used for dict values from the incoming WSGI environment.
@@ -205,6 +211,7 @@ class BaseRequest(object):
     #: buffer up the input stream.  By default it's enabled.
     #:
     #: .. versionadded:: 0.9
+    #:什么叫数据描述符
     disable_data_descriptor = False
 
     def __init__(self, environ, populate_request=True, shallow=False):
@@ -329,6 +336,7 @@ class BaseRequest(object):
         :attr:`form_data_parser_class` with some parameters.
 
         .. versionadded:: 0.8
+        表单数据解析器
         """
         return self.form_data_parser_class(self._get_file_stream,
                                            self.charset,
@@ -386,6 +394,7 @@ class BaseRequest(object):
         object in a with statement which will automatically close it.
 
         .. versionadded:: 0.9
+        一个请求对象含有文件描述符，所以也需要close
         """
         files = self.__dict__.get('files')
         for key, value in iter_multi_items(files or ()):
@@ -427,6 +436,7 @@ class BaseRequest(object):
         is returned from this function.  This can be changed by setting
         :attr:`parameter_storage_class` to a different type.  This might
         be necessary if the order of the form data is important.
+        url查询字符串
         """
         return url_decode(wsgi_get_bytes(self.environ.get('QUERY_STRING', '')),
                           self.url_charset, errors=self.encoding_errors,
@@ -488,13 +498,17 @@ class BaseRequest(object):
         is returned from this function.  This can be changed by setting
         :attr:`parameter_storage_class` to a different type.  This might
         be necessary if the order of the form data is important.
+        内部提交的表单数据
         """
         self._load_form_data()
         return self.form
 
     @cached_property
     def values(self):
-        """Combined multi dict for :attr:`args` and :attr:`form`."""
+        """
+        Combined multi dict for :attr:`args` and :attr:`form`.
+        提交的表单数据和查询字符串组合
+        """
         args = []
         for d in self.args, self.form:
             if not isinstance(d, MultiDict):
@@ -516,6 +530,7 @@ class BaseRequest(object):
         See the :class:`~werkzeug.datastructures.MultiDict` /
         :class:`~werkzeug.datastructures.FileStorage` documentation for
         more details about the used data structure.
+        只有当请求方法是post put或者patch方法，files属性才可能含有数据
         """
         self._load_form_data()
         return self.files
@@ -546,7 +561,9 @@ class BaseRequest(object):
 
     @cached_property
     def full_path(self):
-        """Requested path as unicode, including the query string."""
+        """
+        Requested path as unicode, including the query string.
+        full path是完整的请求路径"""
         return self.path + u'?' + to_unicode(self.query_string, self.url_charset)
 
     @cached_property
